@@ -1,8 +1,8 @@
-from .db import DbConnection, Row
+from .db import DbConnection,RowType
 from domain.clients import Client
 
-def makeClient(row: Row):
-    return Client(row.cpf,row.name)
+def makeClient(row: RowType):
+    return Client(row[0],row[1])
 
 class ClientsSqlRepo():
     def __init__(self,db: DbConnection):
@@ -11,22 +11,21 @@ class ClientsSqlRepo():
 
     def create(self,cpf: str, name: str = ""):
       print("inserting"  + cpf)
-      self.cursor.execute(f"INSERT INTO clients (cpf,name) VALUES ('{cpf}', '{name}')").commit()
+      self.cursor.execute("INSERT INTO clients (cpf,name) VALUES (%s, %s)",(cpf,name))
+      self.db.commit()
       return cpf
 
     def list_all(self)-> list[Client]:
-        self.cursor.execute("SELECT * FROM clients")
+        self.cursor.execute("SELECT cpf,name FROM clients")
         return list(map(makeClient,self.cursor.fetchall()))
     
     def list_by_pk(self, cpf: str) -> list[Client]:
-        self.conn.execute("SELECT * FROM clients o WHERE o.cpf = %d", cpf)
+        self.conn.execute("SELECT * FROM clients c WHERE c.cpf = %s", [cpf])
         return list(map(makeClient,self.cursor.fetchall()))
     
     def delete(self, cpf: str):
-      try:
-        self.cursor.execute(f"DELETE FROM gdi.clients WHERE cpf = '{cpf}'").commit()
-        return self.cursor.rowcount > 0
-      except:
-        return False
+      self.cursor.execute("DELETE FROM clients WHERE cpf = %s",[cpf])
+      self.db.commit()
+      return self.cursor.rowcount > 0
         
       

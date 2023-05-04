@@ -1,48 +1,49 @@
 from domain.orders import Order
-from db import DbConnection,Row
+from domain.clients import Client
+from .db import DbConnection
 
-def makeOrder(row: Row):
-   return Order(row.num,None,[])
+def makeOrder(row):
+   return Order(row[0],Client(row[1],row[2]),[])
 
 class OrdersSqlRepo():
     def __init__(self,db: DbConnection):
       self.db = db
       self.cursor = db.makeCursor()
 
-    def create(self,clientCpf: str, itemCods: list[int]):
-      self.cursor.execute("INSERT INTO orders (cli_cpf) VALUES (?)",clientCpf)
-      orderCod = self.cursor.fetchOne().cod
+    def create(self,clientCpf: str, itemNames: list[str]):
+      self.cursor.execute("INSERT INTO orders (cli_cpf) VALUES (%s)",[clientCpf])
+      orderCod = self.cursor.lastrowid
       # Relacionamentos:
-      orderItemsSql = "INSERT INTO orders_items (ord_num, itm_cod) VALUES "
+      orderItemsSql = "INSERT INTO orders_items (ord_num, itm_nam) VALUES "
       orderItemsParams = []
-      for cod in itemCods:
-        orderItemsSql += "(?,?) "
+      for i,itmName in enumerate(itemNames):
+        if (i > 0): orderItemsSql += ","
+        orderItemsSql += "(%s,%s) "
         orderItemsParams.append(orderCod)
-        orderItemsParams.append(cod)
+        orderItemsParams.append(itmName)
 
-      self.cursor.execute(orderItemsSql,tuple(orderItemsParams))
-      self.cursor.commit()
+      self.cursor.execute(orderItemsSql,orderItemsParams)
+      self.db.commit()
+      return orderCod
+
 
     def list_all(self)-> list[Order]:
-        self.cursor.execute("SELECT * FROM orders")
+        self.cursor.execute("SELECT o.num,o.cli_cpf, c.name FROM orders o JOIN clients c ON c.cpf = o.cli_cpf")
         return map(makeOrder,self.cursor.fetchall())
+
     def get_by_pk(self, cod: int) -> list[Order]:
-        self.cursor.execute("""--sql
-          SELECT * 
+        self.cursor.execute("""-- sql
+          SELECT o.num,o.cli_cpf, c.name
           FROM orders o 
           WHERE o.cod = %d 
           JOIN clients c ON o.cli_cpf = c.cpf
         """, cod)
         return list(map(makeOrder,self.cursor.fetchall()))
+    
     def list_by_client(self, cpf: str)-> list[Order]:
-        self.cursor.execute("SELECT * FROM orders o WHERE o.cli_cpf = %s", cpf)
+        self.cursor.execute("SELECT o.num,o.cli_cpf, c.name FROM orders o JOIN clients c ON c.cpf = o.cli_cpf WHERE o.cli_cpf = %s", [cpf])
         return list(map(makeOrder,self.cursor.fetchall()))
     
-    def update(self, cod: int, clientCpf: str = None, itemCods: list[int] = None):
-       pass
-    
-    def delete(self, cod: int):
-       pass
     
         
       

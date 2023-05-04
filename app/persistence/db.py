@@ -1,64 +1,51 @@
-import pyodbc 
-from pyodbc import Row
+import mysql.connector
+from mysql.connector.types import RowType
+from mysql.connector.connection import MySQLCursor
 from .config import ConfigFile
 
 
 class DbConnection():
     def __init__(self, config: ConfigFile):
         self.config = config
-        self.conn = pyodbc.connect(self.config.makeConnString())
-        
-    def makeCursor(self):
+        self.conn = mysql.connector.connect(host=config.address,user=config.user, password=config.pwd, port=config.port, database=config.database)
+        print(self.conn)
+
+    def commit(self):
+      self.conn.commit()
+
+    def makeCursor(self) -> MySQLCursor:
         return self.conn.cursor()
 
     def create_initial_tables(self):
         print("[create_initial_tables] Criando Tabelas no Banco de Dados")
         cursor = self.makeCursor()
-        cursor\
-        .execute("""-- sql
+        print(cursor)
+        cursor.execute("""-- sql
           CREATE TABLE IF NOT EXISTS clients(
             cpf VARCHAR(14) PRIMARY KEY,
             name VARCHAR(50)
           )
-          """)\
-        .execute("""-- sql
-          CREATE TABLE IF NOT EXISTS ingredients(
-              cod INT AUTO_INCREMENT PRIMARY KEY,
-              name VARCHAR(50) NOT NULL,
-              qty INT NOT NULL DEFAULT 0
-          )
-        """)\
-        .execute("""-- sql
+          """)
+        cursor.execute("""-- sql
             CREATE TABLE IF NOT EXISTS items (
-                cod INT AUTO_INCREMENT PRIMARY KEY,
-                name VARCHAR(50) NOT NULL,
+                name VARCHAR(50) PRIMARY KEY,
                 category VARCHAR(50)
             )
-        """)\
-        .execute("""-- sql
-            CREATE TABLE IF NOT EXISTS items_ingredients (
-                ing_cod INT NOT NULL,
-                itm_cod INT NOT NULL,
-                qty INT NOT NULL DEFAULT 1,
-                FOREIGN KEY  fk_ing_itm_ing (ing_cod) REFERENCES ingredients(cod),
-                FOREIGN KEY  fk_ing_itm_itm (itm_cod) REFERENCES items(cod),
-                CONSTRAINT pk_ing_itm PRIMARY KEY (ing_cod,itm_cod)
-            )
-        """)\
-        .execute("""-- sql
+        """)
+        cursor.execute("""-- sql
             CREATE TABLE IF NOT EXISTS orders (
                 num INT AUTO_INCREMENT PRIMARY KEY ,
                 cli_cpf VARCHAR(14) NOT NULL,
                 FOREIGN KEY  fk_cli_order (cli_cpf) REFERENCES clients(cpf)
             );
-        """)\
-        .execute("""-- sql
+        """)
+        cursor.execute("""-- sql
             CREATE TABLE IF NOT EXISTS orders_items (
                 ord_num INT NOT NULL,
-                itm_cod INT NOT NULL,
+                itm_nam VARCHAR(50) NOT NULL,
                 FOREIGN KEY fk_ord_itm_ord (ord_num) REFERENCES orders(num),
-                FOREIGN KEY fk_ord_itm_itm (itm_cod) REFERENCES items(cod),
-                CONSTRAINT pk_ord_itm PRIMARY KEY (ord_num,itm_cod)
+                FOREIGN KEY fk_ord_itm_itm (itm_nam) REFERENCES items(name),
+                CONSTRAINT pk_ord_itm PRIMARY KEY (ord_num,itm_nam)
             );
         """)
-        cursor.commit()
+        self.commit()

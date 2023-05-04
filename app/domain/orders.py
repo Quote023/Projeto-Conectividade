@@ -1,5 +1,5 @@
-from clients import Client
-from items import Item
+from .clients import Client
+from .items import Item
 
 class Order():
     def __init__(self,num: int, client: Client | str, items: list[Item] | None):
